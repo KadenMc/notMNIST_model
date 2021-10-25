@@ -33,7 +33,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.Linear(input_size, 1000),
             nn.ReLU(),
             nn.Linear(1000, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
     
     # TASK 3
@@ -43,7 +43,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.Linear(input_size, 100),
             nn.ReLU(),
             nn.Linear(100, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
     
     # 500
@@ -52,7 +52,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.Linear(input_size, 500),
             nn.ReLU(),
             nn.Linear(500, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
     
     # 1000
@@ -61,7 +61,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.Linear(input_size, 1000),
             nn.ReLU(),
             nn.Linear(1000, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
 
     # TASK 4
@@ -72,7 +72,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.Linear(500, 500),
             nn.ReLU(),
             nn.Linear(500, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
     
     # TASK 5
@@ -82,7 +82,7 @@ def get_sequential_model(task, input_size, output_size):
             nn.ReLU(),
             nn.Dropout(0.5),
             nn.Linear(1000, output_size),
-            nn.Softmax(dim=1)
+            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
         )
     
     return model
@@ -201,10 +201,10 @@ class Model:
                 
                 # Print the stats if verbose is true
                 if verbose:
-                    print("Epoch {} Train Loss: {}".format(e, train_losses[-1]))
-                    print("Epoch {} Validation Loss: {}".format(e, val_losses[-1]))
-                    print("Epoch {} Val Accuracy: {}".format(e, val_accuracy[-1]))
-                    print("Epoch {} Time: {}".format(e, times[-1]))
+                    print("Epoch {} Train Loss: {}".format(e, np.round(train_losses[-1], 5)))
+                    print("Epoch {} Validation Loss: {}".format(e, np.round(val_losses[-1], 5)))
+                    print("Epoch {} Val Accuracy: {}".format(e, np.round(val_accuracy[-1], 5)))
+                    print("Epoch {} Time: {}".format(e, np.round(times[-1], 5)))
                     
                     if config['lr_decay_gamma'] is not None:
                         print("Epoch {} lr: {}".format(e, self.optimizer.param_groups[0]['lr']))

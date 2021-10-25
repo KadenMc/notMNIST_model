@@ -53,10 +53,10 @@ def parse_arguments():
     
     # Training & testing arguments
     parser.add_argument("--batch_size", type=int, default=16, help="Training batch size")
-    parser.add_argument("--lr", type=float, default=0.04, help="Learning rate")
-    parser.add_argument("--lr_decay_gamma", type=float, default=0.95, help="Learning rate StepLR decay gamma")
+    parser.add_argument("--lr", type=float, default=0.03, help="Learning rate")
+    parser.add_argument("--lr_decay_gamma", type=float, default=0.9, help="Learning rate StepLR decay gamma")
     parser.add_argument("--epochs", type=int, default=80, help="Maximum number of epochs")
-    parser.add_argument("--patience", type=int, default=8, help="Early stopping patience")
+    parser.add_argument("--patience", type=int, default=5, help="Early stopping patience")
     
     parser.add_argument("--train_runs", type=int, default=1, help="Number of training runs")
     

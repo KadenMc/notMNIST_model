@@ -109,12 +109,12 @@ if __name__ == "__main__":
         
         if args.test:
             test_loss, test_acc = model.get_loss(test_loader, device)
-            print("Test loss:", test_loss)
-            print("Test accuracy:", test_acc)
+            print("Test loss:", np.round(test_loss, 5))
+            print("Test accuracy:", np.round(test_acc, 5))
         
         histories.append(history)
         models.append(model)
-        print("\n"*2)
+        print("\n"*3)
         
     # Plot histories
     vis.plot_histories(histories, save_path=args.output_path, suffix=suffix, show_mean=False)

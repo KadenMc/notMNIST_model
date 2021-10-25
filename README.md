@@ -1,18 +1,19 @@
 # notMNIST
 
-## Notes
-Plots are always saved to the output folder as images.
-
+## Instructions
+- Copy the notMNIST data into the data folder.
+- Utilize the commands and optional parameters below.
+- Plots are always saved to the output folder as images.
 
 ## Terminal Commands
 
 *Run the program - output will be sent to a log file in the output directory*
 
-`python main.py --task 5 --verbose --test --stdout_to_file`
+`python main.py --task 2 --verbose --test --stdout_to_file`
 
 *Visualize the images - Trains afterwards*
 
-`python main.py --task 5 --verbose --test --visualize_images`
+`python main.py --task 2 --verbose --test --visualize_images`
 
 
 

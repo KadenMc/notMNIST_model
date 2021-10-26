@@ -10,6 +10,7 @@ The network is capable of achieving 95% on the validation set and 94% on the tes
 - Download the repository.
 - Download the notMNIST data: https://www.kaggle.com/lubaroli/notmnist/version/1
 - Unzip notMNIST_small and move the notMNIST letter folders directly into the data folder.
+- Train the model, or download the pre-trained model below!
 
 Utilize the commands and optional parameters below. Note that plots are always saved to the output folder as images.
 

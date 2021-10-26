@@ -1,5 +1,5 @@
 import os
-from os import path
+from os.path import join
 import sys
 from pprint import pprint # Used to print config nicely
 import re
@@ -21,7 +21,8 @@ def stdout_to_file_setup(args):
     """
     
     # Find a log number - smallest possible which is 0 and above
-    logs = sorted([f for f in os.listdir(args.output_path) if 'log' in f])
+    logs = sorted([f for f in os.listdir(ap.OUTPUT_PATH) if 'log' in f and \
+        os.path.isfile(join(ap.OUTPUT_PATH, f))])
     if len(logs) == 0:
         num = 0
     else:
@@ -38,12 +39,33 @@ def stdout_to_file_setup(args):
             num = len(logs)
     
     stdout_origin=sys.stdout 
-    sys.stdout = open(path.join(args.output_path, "log{}.txt".format(num)), "w")
+    sys.stdout = open(join(ap.OUTPUT_PATH, "log{}.txt".format(num)), "w")
     suffix = str(num)
     return stdout_origin, suffix
 
-    
+def get_tensorboard_path(args, suffix, run):
+    if args.use_tensorboard:
+        if suffix is not None:
+            path = join(ap.OUTPUT_PATH, 'log{}_run'.format(suffix))
+        else:
+            path = join(ap.OUTPUT_PATH, 'log_run')
+        if args.train_runs > 1:
+            path += "{}".format(run)
+    else:
+        path = None
+    return path
 
+
+def get_model_save_path(args, suffix, run):
+    if suffix is not None:
+        path = join(ap.MODELS_PATH, 'model{}_run'.format(suffix))
+    else:
+        path = join(ap.MODELS_PATH, 'model_run')
+
+    if args.train_runs > 1:
+        path += "{}".format(run)
+
+    return path + '.pt'
 
 
 if __name__ == "__main__":
@@ -71,9 +93,6 @@ if __name__ == "__main__":
     else:
         suffix = None
     
-    # Print the current task being executed for future reference
-    print("Task: {}".format(args.task))
-    
     # Define the dataloaders
     train_loader, val_loader, test_loader = \
         dl.prepare_dataloaders(args.data_path, 15000, 1000, \
@@ -96,29 +115,45 @@ if __name__ == "__main__":
     pprint(config)
     print("\n")
 
-    # Train
-    histories = []
-    models = []
-    for _ in range(args.train_runs):
-        # Define model
-        model = m.Model(args.task, 28*28, len(class_letters), config, device)
-
-        # Train the model
-        history = model.train(train_loader, val_loader, config, device, verbose=args.verbose)
-        print("Training took {:.3f} minutes".format(sum(history['times'])/60))
-        
-        if args.test:
-            test_loss, test_acc = model.get_loss(test_loader, device)
-            print("Test loss:", np.round(test_loss, 5))
-            print("Test accuracy:", np.round(test_acc, 5))
-        
-        histories.append(history)
-        models.append(model)
-        print("\n"*3)
-        
-    # Plot histories
-    vis.plot_histories(histories, save_path=args.output_path, suffix=suffix, show_mean=False)
+    # Predict
+    if args.predict:
+        assert args.model_path is not None
+        model = m.Model(config, device, print_summary=True)
+        loss, accuracy = model.predict(args.model_path, test_loader, device)
+        print("Test loss:", loss)
+        print("Test accuracy:", accuracy)
     
+    else:
+        # Train
+        histories = []
+        models = []
+        for run in range(args.train_runs):
+            # Define model
+            model = m.Model(config, device, print_summary=True)
+            
+            # Train the model
+            tensorboard_path = get_tensorboard_path(args, suffix, run)
+            model_save_path = get_model_save_path(args, suffix, run)
+            
+            history = model.train(train_loader, val_loader, config, device, \
+                verbose=args.verbose, tensorboard_path=tensorboard_path, \
+                model_save_path=model_save_path)
+            
+            print("Training took {:.3f} minutes".format(sum(history['times'])/60))
+            
+            if args.test:
+                test_loss, test_acc = model.get_loss(test_loader, device)
+                print("Test loss:", np.round(test_loss, 5))
+                print("Test accuracy:", np.round(test_acc, 5))
+            
+            histories.append(history)
+            models.append(model)
+            print("\n"*3)
+            
+        # Plot histories
+        if not args.use_tensorboard:
+            vis.plot_histories(histories, save_path=ap.OUTPUT_PATH, suffix=suffix, show_mean=False)
+        
     
     # Close the stdout pipe if stdout was being sent to a file
     if args.stdout_to_file:

@@ -1,0 +1,7 @@
+numpy==1.19.5
+torch==1.10.0
+torchvision==0.6.0
+tensorboard==2.4.1
+tqdm==4.43.0
+opencv-python==4.4.0.46
+pillow==7.0.0

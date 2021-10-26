@@ -70,7 +70,7 @@ def prepare_dataloaders(data_path, train_n, val_n, load_in_batches, batch_size):
     transform = transforms.Compose([
         transforms.Grayscale(), # Convert to grayscale
         transforms.ToTensor(), # Make into PyTorch tensor
-        transforms.Normalize((0.5,), (0.5,)), # Normalization
+        transforms.Normalize((0,), (1,)), # Normalization
     ])
     
     # Define dataset using ImageFolder

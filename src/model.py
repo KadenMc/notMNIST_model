@@ -1,3 +1,4 @@
+from os.path import join
 from tqdm import tqdm # Creates custom progress bar
 import time # For timing training
 
@@ -7,6 +8,10 @@ import torch
 from torch import nn, optim
 import torch.nn.functional as F
 from torch.optim.lr_scheduler import StepLR
+
+# Imports for model saving & loading
+from argparsing import MODELS_PATH
+from os.path import join
 
 def get_device(verbose=True):
     """
@@ -23,70 +28,21 @@ def get_device(verbose=True):
     
     return device
 
-def get_sequential_model(task, input_size, output_size):
-    """
-    Select and return the correct model for the given task.
-    """
-    # TASK 2
-    if task == "2":
-        model = nn.Sequential(
-            nn.Linear(input_size, 1000),
-            nn.ReLU(),
-            nn.Linear(1000, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
+def exit_training():
+    from argparsing import ROOT_PATH
+    f = open(join(ROOT_PATH, 'exit.txt'), 'r')
+    exit_training = int(f.read())
+    f.close()
     
-    # TASK 3
-    elif task == "3-100":
-        # 100
-        model = nn.Sequential(
-            nn.Linear(input_size, 100),
-            nn.ReLU(),
-            nn.Linear(100, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
+    # If manually exiting, reset the file to have text "1"
+    # so this doesn't have to be changed back manually
+    if exit_training:
+        f = open(join(ROOT_PATH, 'exit.txt'), 'w')
+        f.write("0")
+        f.close()
     
-    # 500
-    elif task == "3-500":
-        model = nn.Sequential(
-            nn.Linear(input_size, 500),
-            nn.ReLU(),
-            nn.Linear(500, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
+    return exit_training
     
-    # 1000
-    elif task == "3-1000":
-        model = nn.Sequential(
-            nn.Linear(input_size, 1000),
-            nn.ReLU(),
-            nn.Linear(1000, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
-
-    # TASK 4
-    elif task == "4":
-        model = nn.Sequential(
-            nn.Linear(input_size, 500),
-            nn.ReLU(),
-            nn.Linear(500, 500),
-            nn.ReLU(),
-            nn.Linear(500, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
-    
-    # TASK 5
-    elif task == "5":
-        model = nn.Sequential(
-            nn.Linear(input_size, 1000),
-            nn.ReLU(),
-            nn.Dropout(0.5),
-            nn.Linear(1000, output_size),
-            #nn.Softmax(dim=1) # Unnecessary is using nn.CrossEntropyLoss()
-        )
-    
-    return model
-
 
 class MyEarlyStopping:
     """
@@ -108,23 +64,41 @@ class MyEarlyStopping:
 
 
 class Model:
-    def __init__(self, task, input_size, output_size, config, device, print_summary=True):
+    def __init__(self, config, device, print_summary=True):
         # Define the model
-        self.model = get_sequential_model(task, input_size, output_size)
+        self.model = nn.Sequential(
+            # (None, 1, 28, 28)
+            nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1), # (None, 32, 28, 28)
+            nn.BatchNorm2d(32, eps=1e-05, momentum=0.1, affine=True),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2), # (None, 32, 14, 14)
+            nn.Dropout2d(p=0.25),
+            nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1), # (None, 64, 14, 14)
+            nn.BatchNorm2d(64, eps=1e-05, momentum=0.1, affine=True),
+            nn.ReLU(),
+            nn.MaxPool2d(kernel_size=2, stride=2), # (None, 64, 7, 7)
+            nn.Dropout2d(p=0.25),
+            nn.Flatten(),
+            nn.Linear(64*7*7, 4096, bias=True),
+            nn.ReLU(),
+            nn.Dropout(p=0.3),
+            nn.Linear(4096, 512, bias=True),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(512, 10)
+        )
         
+        if print_summary:
+            print(self.model)
+
         # Send model to device
         self.model.to(device)
-        
-        # Print a summary
-        if print_summary:
-            from torchsummary import summary
-            summary(self.model, (input_size,), device=device.type)
         
         # Define the loss function
         self.loss_fn = nn.CrossEntropyLoss()
 
         # Define optimizer
-        self.optimizer = optim.SGD(self.model.parameters(), lr=config['lr'])
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=config['lr'])
         
         # Define learning rate scheduler (handles decay)
         if config['lr_decay_gamma'] is not None:
@@ -143,13 +117,11 @@ class Model:
         accuracy = 0
         loss = 0
         for images, labels in loader:
-            # Get image predictions (taking class with max probability)
-            images = images.view(images.shape[0], -1)
-            
             # Send batch to device
             images = images.to(device)
             labels = labels.to(device)
             
+            # Add to loss and accuracy
             probs = self.model(images)
             loss += self.loss_fn(probs, labels).item()
             top_p, top_class = probs.topk(1, dim=1)
@@ -157,11 +129,21 @@ class Model:
             accuracy += torch.mean(equals.type(torch.FloatTensor)).item()
         return loss/len(loader), accuracy/len(loader)
     
+    def predict(self, model_path, loader, device):
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.to(device)
+        return self.get_loss(loader, device)
     
-    def train(self, train_loader, val_loader, config, device, verbose=True):
+    def train(self, train_loader, val_loader, config, device, verbose=True, \
+        tensorboard_path=None, model_save_path=None):
         """
         Trains the model.
-        """  
+        """ 
+        # Setup Tensorboard
+        if tensorboard_path is not None:
+            from torch.utils.tensorboard import SummaryWriter
+            writer = SummaryWriter(tensorboard_path)
+        
         # Train the model
         train_losses = []
         val_losses = []
@@ -173,9 +155,6 @@ class Model:
                 t_prev = time.time()
                 batch_loss = 0
                 for images, labels in tepoch:
-                    # Flatten
-                    images = images.view(images.shape[0], -1)
-                
                     # Send batch to device
                     images = images.to(device)
                     labels = labels.to(device)
@@ -209,7 +188,11 @@ class Model:
                     if config['lr_decay_gamma'] is not None:
                         print("Epoch {} lr: {}".format(e, self.optimizer.param_groups[0]['lr']))
                 
-                    print()
+                # Write to TensorBoard
+                if tensorboard_path is not None:
+                    writer.add_scalar("Training Loss", train_losses[-1], e)
+                    writer.add_scalar("Validation Loss", val_losses[-1], e)
+                    writer.add_scalar("Validation Accuracy", val_accuracy[-1], e)
                 
                 t_prev = time.time()
                 
@@ -221,6 +204,19 @@ class Model:
                     print("Stopped early - No val acc improvement in {} epochs".format( \
                         config['early_stopping_patience']))
                     break
+                    
+                # Check whether the training is to be stopped manually
+                if exit_training():
+                    print("Manually exiting training")
+                    break
+                
+                # Save model on lowest validation loss
+                if model_save_path is not None:
+                    if val_losses[-1] == min(val_losses):
+                        torch.save(self.model.state_dict(), model_save_path)
+                        print("Saved model at epoch {} with val loss {}".format(e, val_losses[-1]))
+
+                print()
         
         # Prepare and return the history
         history = {
